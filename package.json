@@ -2,7 +2,7 @@
   "name": "english-speaking-training-vscode",
   "displayName": "English Speaking Training",
   "description": "Standalone VS Code speaking-practice cockpit for local EnglishSpeakingTraining files.",
-  "version": "0.1.11",
+  "version": "0.1.19",
   "publisher": "xianwei-zhang",
   "license": "MIT",
   "repository": {
@@ -25,9 +25,7 @@
     "onView:englishTraining.practice",
     "onView:englishTraining.status",
     "onCommand:englishTraining.refresh",
-    "onCommand:englishTraining.configureGitHubMaterials",
-    "onCommand:englishTraining.configureGitHubToken",
-    "onCommand:englishTraining.clearGitHubToken"
+    "onCommand:englishTraining.configureLocalMaterials"
   ],
   "main": "./out/extension.js",
   "icon": "media/marketplace-icon.png",
@@ -44,18 +42,8 @@
         "category": "English Training"
       },
       {
-        "command": "englishTraining.configureGitHubMaterials",
-        "title": "English Training: Configure GitHub Materials Source",
-        "category": "English Training"
-      },
-      {
-        "command": "englishTraining.configureGitHubToken",
-        "title": "English Training: Configure GitHub Token",
-        "category": "English Training"
-      },
-      {
-        "command": "englishTraining.clearGitHubToken",
-        "title": "English Training: Clear GitHub Token",
+        "command": "englishTraining.configureLocalMaterials",
+        "title": "English Training: Configure Local Materials Folder",
         "category": "English Training"
       },
       {
@@ -74,13 +62,13 @@
         "category": "English Training"
       },
       {
-        "command": "englishTraining.clearApiKeys",
-        "title": "English Training: Clear Stored API Keys",
+        "command": "englishTraining.configureMimoKey",
+        "title": "English Training: Configure Xiaomi MiMo API Key",
         "category": "English Training"
       },
       {
-        "command": "englishTraining.configureMiMoKey",
-        "title": "English Training: Configure MiMo API Key",
+        "command": "englishTraining.clearApiKeys",
+        "title": "English Training: Clear Stored API Keys",
         "category": "English Training"
       },
       {
@@ -94,6 +82,11 @@
         "category": "English Training"
       },
       {
+        "command": "englishTraining.configureAzureSpeechKey",
+        "title": "English Training: Configure Azure Speech Key",
+        "category": "English Training"
+      },
+      {
         "command": "englishTraining.useGeminiCoach",
         "title": "English Training: Use Gemini Coach",
         "category": "English Training"
@@ -104,8 +97,8 @@
         "category": "English Training"
       },
       {
-        "command": "englishTraining.useMiMoCoach",
-        "title": "English Training: Use MiMo Coach",
+        "command": "englishTraining.useMimoCoach",
+        "title": "English Training: Use Xiaomi MiMo Coach",
         "category": "English Training"
       },
       {
@@ -119,18 +112,8 @@
         "category": "English Training"
       },
       {
-        "command": "englishTraining.useOpenAIAudioUnderstanding",
-        "title": "English Training: Use OpenAI Speech Input",
-        "category": "English Training"
-      },
-      {
-        "command": "englishTraining.useGeminiAudioUnderstanding",
-        "title": "English Training: Use Gemini Speech Input",
-        "category": "English Training"
-      },
-      {
-        "command": "englishTraining.useMiMoAudioUnderstanding",
-        "title": "English Training: Use MiMo Speech Input",
+        "command": "englishTraining.useAzureAudioUnderstanding",
+        "title": "English Training: Use Azure Speech Input",
         "category": "English Training"
       },
       {
@@ -146,11 +129,6 @@
       {
         "command": "englishTraining.useGeminiTts",
         "title": "English Training: Use Gemini Speech Output",
-        "category": "English Training"
-      },
-      {
-        "command": "englishTraining.useMiMoTts",
-        "title": "English Training: Use MiMo Speech Output",
         "category": "English Training"
       },
       {
@@ -219,58 +197,51 @@
           "default": "Asia/Shanghai",
           "description": "Timezone used for daily package dates."
         },
-        "englishTraining.materialsSource": {
-          "type": "string",
-          "default": "auto",
-          "enum": [
-            "auto",
-            "local",
-            "github"
-          ],
-          "description": "Practice material source. Auto uses a local EnglishSpeakingTraining root when available and falls back to GitHub when configured."
-        },
         "englishTraining.localMaterialsRoot": {
           "type": "string",
           "default": "",
           "description": "Optional absolute path to a local training materials root that contains prebuilt/. When set, the extension can read local materials from any VS Code workspace."
         },
-        "englishTraining.githubMaterialsBaseUrl": {
-          "type": "string",
-          "default": "",
-          "description": "GitHub repo/tree URL or raw.githubusercontent.com base URL that contains the prebuilt/ practice materials folder."
-        },
         "englishTraining.coachProvider": {
           "type": "string",
-          "default": "mimo",
+          "default": "minimax",
           "enum": [
-            "mimo",
             "minimax",
+            "mimo",
+            "openai",
             "gemini",
             "kimi",
             "deepseek"
           ],
-          "description": "Language-model provider used for transcript correction and follow-up generation."
+          "description": "Language-model provider used for transcript correction and follow-up generation. Default routes via the MiniMax Anthropic-compatible endpoint. mimo (Xiaomi MiMo) and deepseek also use Anthropic-compatible endpoints."
         },
         "englishTraining.audioUnderstandingProvider": {
           "type": "string",
-          "default": "openai",
+          "default": "azure",
           "enum": [
-            "openai",
-            "gemini",
-            "mimo"
+            "azure"
           ],
-          "description": "Speech input provider used to understand or transcribe the VS Code recording."
+          "description": "Speech input provider. Currently only Azure Speech is supported (Fast Transcription API + optional Pronunciation Assessment)."
+        },
+        "englishTraining.azureSpeechRegion": {
+          "type": "string",
+          "default": "eastus",
+          "description": "Azure Speech resource region (for example eastus, westus, southeastasia). Used for both Fast Transcription and Pronunciation Assessment endpoints."
+        },
+        "englishTraining.azureSpeechLocale": {
+          "type": "string",
+          "default": "en-US",
+          "description": "BCP-47 locale used for Azure speech recognition and pronunciation assessment (en-US, en-GB, en-IN, etc.)."
         },
         "englishTraining.ttsProvider": {
           "type": "string",
           "default": "minimax",
           "enum": [
+            "minimax",
             "openai",
-            "gemini",
-            "mimo",
-            "minimax"
+            "gemini"
           ],
-          "description": "Speech output provider used to generate the native-version follow-along audio."
+          "description": "Speech output provider used to generate the native-version follow-along audio. Default uses MiniMax T2A (speech-2.8-hd / speech-2.8-turbo)."
         },
         "englishTraining.openaiTranscriptionModel": {
           "type": "string",
@@ -299,63 +270,65 @@
         },
         "englishTraining.geminiTtsModel": {
           "type": "string",
-          "default": "gemini-2.5-flash-preview-tts",
-          "description": "Gemini model used for native-version follow-along audio."
+          "default": "gemini-3.1-flash-tts-preview",
+          "enum": [
+            "gemini-3.1-flash-tts-preview",
+            "gemini-2.5-flash-preview-tts",
+            "gemini-2.5-pro-preview-tts"
+          ],
+          "description": "Gemini model used for native-version follow-along audio. gemini-3.1-flash-tts-preview is the newest preview (Google AI Studio); the 2.5 variants remain selectable for fallback. All use generativelanguage.googleapis.com generateContent with responseModalities=AUDIO."
         },
         "englishTraining.geminiTtsVoice": {
           "type": "string",
           "default": "Kore",
           "description": "Gemini prebuilt voice name for native-version audio."
         },
-        "englishTraining.minimaxChatBaseUrl": {
+        "englishTraining.minimaxAnthropicBaseUrl": {
           "type": "string",
-          "default": "https://api.minimax.io/v1",
-          "description": "MiniMax OpenAI-compatible chat base URL."
+          "default": "https://api.minimaxi.com/anthropic",
+          "description": "MiniMax Token Plan Anthropic-compatible base URL. Used for the M2.7 coach via /v1/messages."
         },
         "englishTraining.minimaxCoachModel": {
           "type": "string",
-          "default": "MiniMax-M2.7-highspeed",
-          "description": "MiniMax model used for correction and follow-up coaching."
+          "default": "MiniMax-M2.7",
+          "enum": [
+            "MiniMax-M2.7",
+            "MiniMax-M2.5"
+          ],
+          "description": "MiniMax model used for correction and follow-up coaching. Token Plan exposes MiniMax-M2.7 (latest) and MiniMax-M2.5 via the Anthropic-compatible endpoint."
+        },
+        "englishTraining.mimoAnthropicBaseUrl": {
+          "type": "string",
+          "default": "https://token-plan-cn.xiaomimimo.com/anthropic",
+          "description": "Xiaomi MiMo Token Plan Anthropic-compatible base URL. Used for mimo-v2.5 coach via /v1/messages. Distinct from MiniMax — separate vendor, separate key."
+        },
+        "englishTraining.mimoCoachModel": {
+          "type": "string",
+          "default": "mimo-v2.5-pro",
+          "enum": [
+            "mimo-v2.5-pro",
+            "mimo-v2.5-flash"
+          ],
+          "description": "Xiaomi MiMo model used for correction and follow-up coaching via Anthropic-compatible endpoint."
         },
         "englishTraining.minimaxTtsBaseUrl": {
           "type": "string",
-          "default": "https://api.minimax.io/v1/t2a_v2",
-          "description": "MiniMax T2A endpoint."
+          "default": "https://api.minimaxi.com/v1/t2a_v2",
+          "description": "MiniMax synchronous T2A endpoint."
         },
         "englishTraining.minimaxTtsModel": {
           "type": "string",
           "default": "speech-2.8-hd",
-          "description": "MiniMax speech model for native-version audio."
+          "enum": [
+            "speech-2.8-hd",
+            "speech-2.8-turbo"
+          ],
+          "description": "MiniMax speech model for native-version audio. speech-2.8-hd is highest fidelity; speech-2.8-turbo is faster."
         },
         "englishTraining.minimaxTtsVoiceId": {
           "type": "string",
           "default": "English_expressive_narrator",
           "description": "MiniMax voice id for English follow-along audio."
-        },
-        "englishTraining.mimoChatBaseUrl": {
-          "type": "string",
-          "default": "https://token-plan-cn.xiaomimimo.com/v1",
-          "description": "Xiaomi MiMo OpenAI-compatible chat base URL."
-        },
-        "englishTraining.mimoCoachModel": {
-          "type": "string",
-          "default": "mimo-v2.5",
-          "description": "Xiaomi MiMo model used for correction and follow-up coaching."
-        },
-        "englishTraining.mimoAudioUnderstandingModel": {
-          "type": "string",
-          "default": "mimo-v2.5",
-          "description": "Xiaomi MiMo model used for speech input understanding."
-        },
-        "englishTraining.mimoTtsModel": {
-          "type": "string",
-          "default": "mimo-v2.5-tts",
-          "description": "Xiaomi MiMo model used for native-version follow-along audio."
-        },
-        "englishTraining.mimoTtsVoice": {
-          "type": "string",
-          "default": "mimo_default",
-          "description": "Xiaomi MiMo built-in voice used for native-version follow-along audio."
         },
         "englishTraining.kimiChatBaseUrl": {
           "type": "string",
@@ -367,30 +340,54 @@
           "default": "kimi-for-coding",
           "description": "Kimi Code model used for correction and follow-up coaching."
         },
-        "englishTraining.deepseekChatBaseUrl": {
+        "englishTraining.deepseekAnthropicBaseUrl": {
           "type": "string",
-          "default": "https://api.deepseek.com",
-          "description": "DeepSeek OpenAI-compatible chat base URL."
+          "default": "https://api.deepseek.com/anthropic",
+          "description": "DeepSeek Anthropic-compatible base URL. Coach calls /v1/messages on this endpoint."
         },
         "englishTraining.deepseekCoachModel": {
           "type": "string",
           "default": "deepseek-v4-pro",
-          "description": "DeepSeek model used for correction and follow-up coaching."
+          "enum": [
+            "deepseek-v4-pro",
+            "deepseek-v4-flash"
+          ],
+          "description": "DeepSeek model used for correction and follow-up coaching via Anthropic-compatible endpoint."
         },
         "englishTraining.ttsSpeed": {
           "type": "number",
           "default": 0.9,
           "description": "Playback speed used when generating follow-along TTS audio."
         },
+        "englishTraining.recorderBackend": {
+          "type": "string",
+          "default": "macLocal",
+          "enum": [
+            "macLocal",
+            "webview",
+            "auto"
+          ],
+          "description": "Recording backend. macLocal uses macOS AVFoundation through ffmpeg and avoids iPhone/Continuity microphones; webview uses VS Code MediaRecorder; auto tries webview and falls back to native."
+        },
+        "englishTraining.preferredMicrophoneName": {
+          "type": "string",
+          "default": "",
+          "description": "Optional microphone name substring to prefer for recording, for example iMac Microphone. Used by both webview selection and native macOS recording."
+        },
+        "englishTraining.blockedMicrophoneNamePattern": {
+          "type": "string",
+          "default": "iphone|ipad|continuity|karios",
+          "description": "Case-insensitive regex for microphone names the recorder should avoid, especially iPhone/Continuity devices."
+        },
         "englishTraining.nativeRecorderFfmpegPath": {
           "type": "string",
           "default": "ffmpeg",
-          "description": "ffmpeg executable used when VS Code webview microphone access is denied."
+          "description": "ffmpeg executable used for macOS local recording."
         },
         "englishTraining.nativeRecorderFfmpegAudioDevice": {
           "type": "string",
-          "default": "0",
-          "description": "macOS AVFoundation audio device index for ffmpeg fallback recording. Use ffmpeg -f avfoundation -list_devices true -i \"\" to inspect devices."
+          "default": "auto",
+          "description": "macOS AVFoundation audio device index for ffmpeg recording, or auto to choose a local Mac microphone while avoiding blocked devices. Use ffmpeg -f avfoundation -list_devices true -i \"\" to inspect devices."
         }
       }
     }

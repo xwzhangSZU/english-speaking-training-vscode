@@ -5,3 +5,9 @@ out/
 .DS_Store
 .env
 .env.*
+
+# Legacy Python project kept locally as methodology reference; not shipped with the extension
+reference/
+
+# Scratch directory for firecrawl-scrape skill output; never committed
+.firecrawl/

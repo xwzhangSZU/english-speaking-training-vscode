@@ -11,3 +11,5 @@ node_modules/**
 npm-debug.log
 package-lock.json
 media/marketplace-icon.svg
+reference/**
+.firecrawl/**

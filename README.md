@@ -4,23 +4,22 @@ Standalone VS Code speaking-practice cockpit for `EnglishSpeakingTraining`
 materials.
 
 The extension no longer depends on Hermes or Telegram for the main practice
-loop. It reads `prebuilt/` package files from either the current workspace or a
-configured GitHub raw/repo URL, records inside a VS Code webview, stores API keys
-in VS Code SecretStorage, and writes session artifacts locally.
+loop. It reads local `prebuilt/` package files, records inside a VS Code webview,
+stores API keys in VS Code SecretStorage, and writes session artifacts locally.
 
 ## Bring Your Own Materials
 
-The extension does **not** ship lessons. You point it at a `prebuilt/` directory
-of your own — local folder or GitHub repo — and it walks every `YYYY-MM-DD`
-subdirectory it finds. There is no required curriculum length: 7 lessons or 365
-lessons both work.
+The extension does **not** ship lessons. You point it at a local `prebuilt/`
+directory of your own, and it walks every `YYYY-MM-DD` subdirectory it finds.
+There is no required curriculum length: 7 lessons or 365 lessons both work.
 
 **First-run path** (no lessons yet):
 
 1. Open the **English Training** sidebar. The Quick Setup card lists what's
    missing.
-2. Click *Pick where lessons live* → choose `Local` (or `GitHub`).
-3. Click *Create your first lesson* (local mode) → pick a folder; the extension
+2. Click *Pick local folder* or run `English Training: Configure Local Materials
+   Folder`.
+3. Click *Create your first lesson* → pick a folder; the extension
    creates `prebuilt/` and `progress/` inside it and writes a starter
    `prebuilt/<today>/english-training.json` you can edit.
 4. Click *Add your first AI key* → pick a provider (MiMo recommended for the
@@ -30,26 +29,28 @@ lessons both work.
 For the field-by-field schema, run `English Training: Open Materials Guide`
 from the command palette.
 
-## Materials Source
+## Local Materials Source
 
 - **Local**: auto-detects a workspace or parent folder containing `prebuilt/`.
 - **Fixed local path**: set `englishTraining.localMaterialsRoot` to a directory
   containing `prebuilt/` so the sidebar works from any VS Code workspace.
-- **GitHub**: set `englishTraining.githubMaterialsBaseUrl` to a GitHub repo/tree
-  URL or a `raw.githubusercontent.com` base URL that contains `prebuilt/`.
+- **Picker**: run `English Training: Configure Local Materials Folder`, or click
+  `Source -> Local Folder` in the sidebar.
 
-Use `English Training: Configure GitHub Materials Source` from the command
-palette, or click `Source -> GitHub` in the sidebar. GitHub mode keeps practice
-logs and completion progress under VS Code global storage, so the VS Code
-workspace does not need to be the training repository.
+## Source Diagnostics and Learner Profile
 
-For a private materials repository, run `English Training: Configure GitHub
-Token` or click `Source -> GitHub Token`. Store a fine-grained GitHub token with
-read access to the repository. The token is kept only in VS Code SecretStorage;
-it is not written to `settings.json`. Remote JSON, Markdown task cards, and the
-daily audio file are fetched by the extension with that token. The audio is
-cached under VS Code global storage so the sidebar player can use a local
-webview URI instead of exposing the private raw URL.
+The Practice sidebar shows **Source Diagnostics** so you can verify what it
+actually loaded: local root, lesson count, current package date, and the exact
+`english-training.json` path.
+
+To personalize coaching, add one of these files to your materials root:
+
+- `profile/learner-profile.md`
+- `profile/learner-profile.json`
+
+When found, the sidebar shows **Profile loaded** and the coach receives that
+profile with every practice turn. If no profile exists, the sidebar shows the
+expected path.
 
 ## Provider Defaults
 
@@ -68,6 +69,10 @@ webview URI instead of exposing the private raw URL.
 - Direct `Record` / `Stop` microphone flow inside the sidebar.
 - Transcript, native-speaker version, concrete problems, repeat instruction,
   and follow-up question returned in the same sidebar.
+- On-demand *Example audio*: click `Generate Example` to synthesize only the
+  lesson example text (`clean_tts_text`, `audio_text`, or `demo_line`) with
+  your configured speech-output provider. Scenario and goal background are not
+  read aloud.
 - Generated native-version audio saved locally and played in VS Code.
 - API key commands:
   - `English Training: Configure OpenAI API Key`
@@ -76,28 +81,34 @@ webview URI instead of exposing the private raw URL.
   - `English Training: Configure MiMo API Key`
   - `English Training: Configure Kimi API Key`
   - `English Training: Configure DeepSeek API Key`
-  - `English Training: Configure GitHub Token`
 - Local actions:
   - `English Training: Complete Current Package Locally`
   - `English Training: Open Current Task Card`
   - `English Training: Open Local Session Folder`
-  - `English Training: Configure GitHub Materials Source`
+  - `English Training: Configure Local Materials Folder`
 
 ## Development
 
 ```sh
-cd vscode-extension
 npm install
 npm run compile
 npx @vscode/vsce package --allow-missing-repository
 ```
 
-Open this folder in VS Code and press `F5` to run an Extension Development Host.
-Open the `EnglishSpeakingTraining` project folder in that host to activate the
-extension.
+Open this folder in VS Code and press `F5` to run an Extension Development
+Host. The host needs a workspace folder that contains a `prebuilt/` directory
+to activate the extension; you can point it at any folder with lessons, or use
+`English Training: Configure Local Materials Folder` from the command palette.
+
+The legacy Python tooling that originally generated the daily packages now
+lives in `reference/` (gitignored). It is kept as a methodology archive only —
+the extension does not depend on it at runtime.
 
 ## Notes
 
-The recorder first tries browser `MediaRecorder` inside the VS Code webview. If
-VS Code denies microphone access, it falls back to native macOS recording
-through `ffmpeg` AVFoundation and keeps the resulting session files local.
+The recorder defaults to `englishTraining.recorderBackend = macLocal` on macOS.
+That path records through `ffmpeg` AVFoundation, auto-selects a local Mac
+microphone such as `iMac Microphone`, and avoids device names matching
+`englishTraining.blockedMicrophoneNamePattern` such as iPhone/Continuity inputs.
+Set `englishTraining.preferredMicrophoneName` if you want to pin a specific
+local microphone.
