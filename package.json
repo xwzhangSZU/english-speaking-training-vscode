@@ -2,7 +2,7 @@
   "name": "english-speaking-training-vscode",
   "displayName": "English Speaking Training",
   "description": "Standalone VS Code speaking-practice cockpit for local EnglishSpeakingTraining files.",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "publisher": "xianwei-zhang",
   "license": "MIT",
   "repository": {
@@ -84,6 +84,11 @@
       {
         "command": "englishTraining.configureAzureSpeechKey",
         "title": "English Training: Configure Azure Speech Key",
+        "category": "English Training"
+      },
+      {
+        "command": "englishTraining.useOpenAICoach",
+        "title": "English Training: Use OpenAI Coach",
         "category": "English Training"
       },
       {
@@ -247,6 +252,11 @@
           "type": "string",
           "default": "gpt-4o-transcribe",
           "description": "OpenAI model used for speech-to-text from the VS Code recorder."
+        },
+        "englishTraining.openaiCoachModel": {
+          "type": "string",
+          "default": "gpt-4o-mini",
+          "description": "OpenAI model used for correction and follow-up coaching."
         },
         "englishTraining.openaiTtsModel": {
           "type": "string",

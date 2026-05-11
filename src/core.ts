@@ -221,3 +221,14 @@ export function arrayOfStrings(value: unknown): string[] {
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
+
+export function normalizeTtsSpeed(value: unknown, fallback = 0.9): number {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim()
+        ? Number(value)
+        : fallback;
+  const speed = Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  return Math.max(0.5, Math.min(1.5, Number(speed.toFixed(2))));
+}

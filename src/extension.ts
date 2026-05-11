@@ -36,6 +36,7 @@ import {
   isTtsProvider,
   MIMO_ANTHROPIC_BASE_URL,
   MINIMAX_ANTHROPIC_BASE_URL,
+  normalizeTtsSpeed,
   parseFirstJson,
   providerLabel,
   readJson,
@@ -65,6 +66,7 @@ let practiceProvider: PracticeViewProvider;
 let nativeRecording: NativeRecordingSession | undefined;
 
 const DEFAULT_BLOCKED_MICROPHONE_PATTERN = "iphone|ipad|continuity|karios";
+const DEFAULT_TIMEZONE = "Asia/Shanghai";
 const LOCAL_MICROPHONE_PATTERN = /\b(imac|macbook|mac mini|mac studio|studio display|built[- ]?in|internal)\b/i;
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -199,7 +201,7 @@ function trainingSettings(): TrainingState["settings"] {
     deepseekCoachModel: config<string>("deepseekCoachModel") || "deepseek-v4-pro",
     minimaxTtsModel: config<string>("minimaxTtsModel") || "speech-2.8-hd",
     minimaxTtsVoiceId: config<string>("minimaxTtsVoiceId") || "English_expressive_narrator",
-    ttsSpeed: Number(config<number>("ttsSpeed") ?? 0.9),
+    ttsSpeed: normalizeTtsSpeed(config<unknown>("ttsSpeed"), 0.9),
     recorderBackend: config<string>("recorderBackend") || "macLocal",
     preferredMicrophoneName: config<string>("preferredMicrophoneName") || "",
     blockedMicrophoneNamePattern: config<string>("blockedMicrophoneNamePattern") || DEFAULT_BLOCKED_MICROPHONE_PATTERN,
@@ -262,13 +264,24 @@ function expandHome(value: string): string {
 }
 
 function todayInConfiguredTimezone(): string {
-  const timezone = config<string>("timezone") || "Asia/Shanghai";
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
+  const timezone = (config<string>("timezone") || DEFAULT_TIMEZONE).trim() || DEFAULT_TIMEZONE;
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+  } catch {
+    appendOutput(`Invalid englishTraining.timezone "${timezone}", falling back to ${DEFAULT_TIMEZONE}.`);
+    parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: DEFAULT_TIMEZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+  }
   const pick = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
 }
@@ -767,10 +780,7 @@ async function setProviderSetting(setting: "coachProvider" | "audioUnderstanding
 }
 
 async function setTtsSpeedConfig(speed: number): Promise<void> {
-  if (!Number.isFinite(speed) || speed <= 0) {
-    return;
-  }
-  const clamped = Math.max(0.5, Math.min(1.5, Number(speed.toFixed(2))));
+  const clamped = normalizeTtsSpeed(speed, 0.9);
   await vscode.workspace.getConfiguration("englishTraining").update("ttsSpeed", clamped, vscode.ConfigurationTarget.Workspace);
   await refreshAll();
 }
@@ -2393,12 +2403,18 @@ class PracticeViewProvider implements vscode.WebviewViewProvider {
       if (label) setStatus(label, active ? "busy" : undefined);
     }
 
+    function currentSettings() {
+      return (state && state.settings) || {};
+    }
+
     function recorderBackend() {
-      return String((state.settings && state.settings.recorderBackend) || "macLocal");
+      const settings = currentSettings();
+      return String(settings.recorderBackend || "macLocal");
     }
 
     function blockedMicrophonePattern() {
-      const pattern = String((state.settings && state.settings.blockedMicrophoneNamePattern) || "iphone|ipad|continuity|karios");
+      const settings = currentSettings();
+      const pattern = String(settings.blockedMicrophoneNamePattern || "iphone|ipad|continuity|karios");
       try {
         return new RegExp(pattern, "i");
       } catch {
@@ -2422,7 +2438,8 @@ class PracticeViewProvider implements vscode.WebviewViewProvider {
       }
       const devices = await navigator.mediaDevices.enumerateDevices();
       const inputs = devices.filter((device) => device.kind === "audioinput" && device.label);
-      const preferred = String((state.settings && state.settings.preferredMicrophoneName) || "").toLowerCase().trim();
+      const settings = currentSettings();
+      const preferred = String(settings.preferredMicrophoneName || "").toLowerCase().trim();
       const byPreferredName = preferred
         ? inputs.find((device) => !isBlockedMicrophone(device.label) && device.label.toLowerCase().includes(preferred))
         : undefined;
@@ -2453,20 +2470,38 @@ class PracticeViewProvider implements vscode.WebviewViewProvider {
           if (event.data && event.data.size > 0) chunks.push(event.data);
         };
         mediaRecorder.onstop = async () => {
-          const mimeType = mediaRecorder.mimeType || "audio/webm";
-          const blob = new Blob(chunks, { type: mimeType });
-          $("localAudio").src = URL.createObjectURL(blob);
-          $("localAudio").hidden = false;
-          stopVuMeter();
-          stopTimer();
-          setRecording(false);
-          setBusy(true, "Sending to coach…");
-          showStages(true);
-          const base64 = await blobToBase64(blob);
-          const priorTurn = pendingReplyContext;
-          pendingReplyContext = null;
-          vscode.postMessage({ type: "practiceAudio", mimeType, base64, priorTurn });
-          if (stream) stream.getTracks().forEach((track) => track.stop());
+          try {
+            const stoppedRecorder = mediaRecorder;
+            const mimeType = (stoppedRecorder && stoppedRecorder.mimeType) || "audio/webm";
+            const blob = new Blob(chunks, { type: mimeType });
+            if (blob.size < 1000) {
+              throw new Error("Recording was empty. Please try again after the microphone indicator appears.");
+            }
+            $("localAudio").src = URL.createObjectURL(blob);
+            $("localAudio").hidden = false;
+            setRecording(false);
+            setBusy(true, "Sending to coach…");
+            showStages(true);
+            const base64 = await blobToBase64(blob);
+            if (!base64) {
+              throw new Error("Recording could not be encoded for processing.");
+            }
+            const priorTurn = pendingReplyContext;
+            vscode.postMessage({ type: "practiceAudio", mimeType, base64, priorTurn });
+          } catch (error) {
+            setBusy(false);
+            setRecording(false);
+            showStages(false);
+            setStatus((error && error.message) || String(error), "error");
+          } finally {
+            stopVuMeter();
+            stopTimer();
+            if (stream) stream.getTracks().forEach((track) => track.stop());
+            stream = null;
+            mediaRecorder = null;
+            chunks = [];
+            recorderMode = null;
+          }
         };
         recorderMode = "webview";
         mediaRecorder.start();
@@ -2475,6 +2510,10 @@ class PracticeViewProvider implements vscode.WebviewViewProvider {
         startVuMeter(stream);
         startTimer();
       } catch (error) {
+        if (stream) stream.getTracks().forEach((track) => track.stop());
+        stream = null;
+        mediaRecorder = null;
+        chunks = [];
         startNativeRecording((error && error.message) || String(error));
       }
     }
@@ -2834,6 +2873,7 @@ class PracticeViewProvider implements vscode.WebviewViewProvider {
         setBusy(false);
         setStatus("Ready ✓");
         recorderMode = null;
+        pendingReplyContext = null;
         if (message.result && message.result.localAudioUri) {
           $("localAudio").src = message.result.localAudioUri;
           $("localAudio").hidden = false;
@@ -2975,6 +3015,9 @@ async function processPracticeAudio(
   const inputExt = extensionFromMime(message.mimeType);
   const inputPath = path.join(sessionDir, `input.${inputExt}`);
   const audioBuffer = Buffer.from(message.base64, "base64");
+  if (audioBuffer.length < 1000) {
+    throw new Error("Recorded audio is empty or too short to process.");
+  }
   fs.writeFileSync(inputPath, audioBuffer);
   return processPracticeFile(
     context,
@@ -3312,10 +3355,17 @@ async function openCurrentTaskCard(context: vscode.ExtensionContext): Promise<vo
   const state = await loadState(context);
   const assets = (state.next.assets as JsonObject | undefined) ?? {};
   const taskCard = stringValue(assets.task_card);
-  if (!taskCard) {
-    throw new Error("No task card path is available.");
+  if (taskCard && isHttpUrl(taskCard)) {
+    await vscode.env.openExternal(vscode.Uri.parse(taskCard));
+    return;
   }
-  await vscode.window.showTextDocument(vscode.Uri.file(taskCard));
+  const localTaskCard = existingFilePath(taskCard);
+  const currentJson = existingFilePath(state.sourceDiagnostics.currentJson);
+  const target = localTaskCard || currentJson;
+  if (!target) {
+    throw new Error("No task card or english-training.json path is available.");
+  }
+  await vscode.window.showTextDocument(vscode.Uri.file(target));
 }
 
 async function revealCurrentPackage(context: vscode.ExtensionContext): Promise<void> {
@@ -3623,3 +3673,13 @@ function isHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value);
 }
 
+function existingFilePath(value: string): string {
+  if (!value || isHttpUrl(value) || !fs.existsSync(value)) {
+    return "";
+  }
+  try {
+    return fs.statSync(value).isFile() ? value : "";
+  } catch {
+    return "";
+  }
+}

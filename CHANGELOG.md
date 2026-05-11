@@ -7,6 +7,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.20] — 2026-05-11
+
+### Fixed
+- Guarded invalid `englishTraining.timezone` values so the sidebar falls back
+  to `Asia/Shanghai` instead of crashing while loading state.
+- Normalized `englishTraining.ttsSpeed` before it reaches the sidebar or TTS
+  providers, preventing dirty settings such as `NaN`, `null`, or out-of-range
+  numbers from breaking runtime speech generation.
+- Cleaned up the webview recorder failure path: empty recordings are rejected
+  before transcription, microphone streams are stopped on fallback/error, and
+  retrying a failed follow-up reply preserves its prior-turn context.
+- `Open Current Task Card` now falls back to the current
+  `english-training.json` when a minimal local package does not include
+  `telegram-task-card.md`.
+- Published the existing OpenAI coach command and `openaiCoachModel` setting in
+  the extension manifest so command palette/settings UI match the runtime code.
+
 ## [0.1.19] — 2026-05-11
 
 ### Added

@@ -6,6 +6,7 @@ import {
   config,
   getRequiredKey,
   MINIMAX_TTS_BASE_URL,
+  normalizeTtsSpeed,
   stringValue,
 } from "../core.js";
 import type { JsonObject } from "../types.js";
@@ -43,10 +44,7 @@ export async function synthesizeWithConfiguredTts(
 }
 
 function resolveSpeed(speedOverride?: number): number {
-  if (typeof speedOverride === "number" && Number.isFinite(speedOverride) && speedOverride > 0) {
-    return speedOverride;
-  }
-  return Number(config<number>("ttsSpeed") ?? 0.9);
+  return normalizeTtsSpeed(speedOverride ?? config<unknown>("ttsSpeed"), 0.9);
 }
 
 async function synthesizeOpenAI(
