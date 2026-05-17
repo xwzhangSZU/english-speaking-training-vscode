@@ -44,7 +44,7 @@ import {
 import { createSamplePackage, generateNextPackage } from "../materials/scaffold.js";
 import { composeMaterialPrompt } from "../materials/prompt-composer.js";
 import { expandHome } from "../runtime/training-root.js";
-import { loadState, toWebviewState } from "../runtime/state.js";
+import { invalidateNextPackageCache, loadState, toWebviewState } from "../runtime/state.js";
 import {
   killActiveNativeRecording,
   startNativeFfmpegRecording,
@@ -114,6 +114,12 @@ export class PracticeViewProvider implements vscode.WebviewViewProvider {
     const payload = message as JsonObject;
     try {
       if (payload.type === "ready" || payload.type === "refresh") {
+        // An explicit user refresh must re-detect externally-changed
+        // packages/completion; "ready" is the initial load (a cache miss
+        // anyway), so only the explicit refresh drops the cache.
+        if (payload.type === "refresh") {
+          invalidateNextPackageCache();
+        }
         await this.postState();
         return;
       }

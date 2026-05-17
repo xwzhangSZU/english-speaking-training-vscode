@@ -10,6 +10,7 @@ import {
 } from "../card-schema.js";
 import { openMaterialsGuide } from "../materials-guide.js";
 import { refreshAll } from "../runtime/host.js";
+import { invalidateNextPackageCache } from "../runtime/state.js";
 import { findTrainingRoot, readLocalInventory, todayInConfiguredTimezone } from "../runtime/training-root.js";
 import { sampleFollowupDrillPackage, sampleTrainingPackage } from "./sample-package.js";
 
@@ -47,6 +48,8 @@ export async function createSamplePackage(context: vscode.ExtensionContext): Pro
   writeJson(path.join(packageDir, "followup-drill.json"), sampleFollowupDrillPackage(targetDate));
   vscode.window.showInformationMessage(`Sample lesson and FSI drill written to prebuilt/${targetDate}. Edit them and refresh the sidebar.`);
   await vscode.window.showTextDocument(vscode.Uri.file(targetFile));
+  // A new prebuilt/<date> can change which package is "next".
+  invalidateNextPackageCache();
   await refreshAll();
 }
 
@@ -118,6 +121,8 @@ export async function generateNextPackage(context: vscode.ExtensionContext): Pro
     `Blank skeleton written to prebuilt/${targetDate}. Feed the generation prompt to any LLM ` +
       "(MiniMax / Gemini / Kimi / ...), paste its two JSON blocks back into the skeleton files, then Refresh.",
   );
+  // A new prebuilt/<date> can change which package is "next".
+  invalidateNextPackageCache();
   await refreshAll();
 }
 

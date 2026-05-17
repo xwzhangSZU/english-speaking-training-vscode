@@ -7,7 +7,7 @@ import type { JsonObject } from "../types.js";
 import { refreshAll } from "../runtime/host.js";
 import { pythonPath } from "../runtime/settings.js";
 import { execFile, isHttpUrl } from "../runtime/training-root.js";
-import { loadState } from "../runtime/state.js";
+import { invalidateNextPackageCache, loadState } from "../runtime/state.js";
 
 export async function completeLocalPackage(context: vscode.ExtensionContext): Promise<void> {
   const state = await loadState(context);
@@ -38,6 +38,9 @@ export async function completeLocalPackage(context: vscode.ExtensionContext): Pr
     throw new Error(`Local completion failed: ${result.stderr || result.stdout}`);
   }
   vscode.window.showInformationMessage(`Completed ${packageDate} locally.`);
+  // Completion advances which package is "next"; drop the memoized result
+  // so the refresh below (and the next record/stop) re-resolve once.
+  invalidateNextPackageCache();
   await refreshAll();
 }
 

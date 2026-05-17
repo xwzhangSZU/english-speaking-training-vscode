@@ -56,6 +56,20 @@ unchanging status line.
   concurrently — each still degrading on its own (a failed clip is
   skipped, the turn and the other clip are kept) — which roughly halves
   the speak step whenever there is a follow-up.
+- **The "which lesson is next" lookup re-ran a Python process ~4 times
+  per turn.** Resolving the current package shells out to
+  `english_training_progress.py` (a cold-started interpreter with a long
+  timeout) — or, without that script, a directory + JSON scan — and it
+  ran on *every* internal state load: once when you press record, once
+  when you press stop, then twice more in the post-turn refresh. So a
+  single practice turn cold-started Python up to four times for an answer
+  that only changes when you complete or add a lesson. This was a large,
+  invisible part of the "press record and wait" lag on setups that have
+  that script. The result is now memoized per materials-root and day and
+  reused across the turn; it is recomputed exactly when it can actually
+  change — completing a lesson, adding a lesson, a date rollover, a
+  changed materials root, or an explicit Refresh — so correctness is
+  unchanged while the redundant process spawns are gone.
 
 ### Changed
 - **Record-start is now a visible, staged process.** Instead of one frozen

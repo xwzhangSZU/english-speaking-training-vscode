@@ -114,6 +114,7 @@ import {
 import { loadLocalLearnerProfile } from "./runtime/learner-profile.js";
 import {
   buildProgressSnapshot,
+  invalidateNextPackageCache,
   loadState,
   packageAssets,
   todayExampleText,
@@ -195,6 +196,9 @@ export function activate(context: vscode.ExtensionContext): void {
     await vscode.commands.executeCommand("englishTraining.practice.focus");
   });
   register("englishTraining.refresh", async () => {
+    // Explicit user refresh must re-detect externally-changed packages or
+    // completion, so drop the memoized next-package before re-resolving.
+    invalidateNextPackageCache();
     await refreshAll();
   });
   register("englishTraining.configureLocalMaterials", async () => {
