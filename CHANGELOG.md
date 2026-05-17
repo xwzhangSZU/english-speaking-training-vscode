@@ -70,6 +70,21 @@ unchanging status line.
   change — completing a lesson, adding a lesson, a date rollover, a
   changed materials root, or an explicit Refresh — so correctness is
   unchanged while the redundant process spawns are gone.
+- **A normal-length turn tripped a "taking too long" reset and freed the
+  record button mid-pipeline.** The webview's processing watchdog fired
+  after a flat 45 s and called `setBusy(false)`, but a healthy turn — each
+  of transcribe, coach, and speak is bounded host-side at 90 s and runs in
+  sequence, and the coach step alone routinely takes 20–40 s — regularly
+  exceeds 45 s. So on ordinary turns the watchdog un-busied the record
+  button while the host was still working: the UI stopped looking busy and
+  a second press could start an overlapping turn. The watchdog is now a
+  *no-progress* detector — every stage transition re-arms it, so a long
+  but progressing multi-leg turn never trips it — and it fires only after
+  100 s with no progress at all (past the per-leg network ceiling, i.e. a
+  genuinely wedged pipeline). It no longer touches the busy state: every
+  reachable failure already self-recovers with a bounded error that clears
+  busy and resets the recorder authoritatively, so the watchdog is now
+  purely an advisory status line and can never strand a live turn.
 
 ### Changed
 - **Record-start is now a visible, staged process.** Instead of one frozen

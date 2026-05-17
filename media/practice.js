@@ -1191,13 +1191,26 @@
         processingWatchdog = null;
       }
     }
+    // A no-PROGRESS watchdog, not a total-duration one. Every stage transition
+    // (transcribe/coach/tts/save × active/done) re-arms it, so a healthy
+    // multi-leg turn — where the coach LLM leg alone routinely runs 20-40s and
+    // each network leg is bounded host-side at HTTP_REQUEST_TIMEOUT_MS (90s) —
+    // keeps resetting the clock and never trips it. It fires only if a single
+    // stage emits nothing past that per-leg ceiling, i.e. the pipeline is
+    // genuinely wedged (host event loop blocked, a dropped message), not merely
+    // slow. It deliberately does NOT setBusy(false): the pipeline is still
+    // alive and every reachable failure self-recovers with a bounded error that
+    // the host turns into an "error" message, whose handler clears busy and
+    // tears the recorder down authoritatively. Un-busying here would instead
+    // strand a live turn with the record button clickable again mid-pipeline
+    // (a second press then starts an overlapping turn), which is exactly the
+    // spurious >45s fire that used to happen on normal turns.
     function armProcessingWatchdog() {
       clearProcessingWatchdog();
       processingWatchdog = setTimeout(() => {
         processingWatchdog = null;
-        setBusy(false);
         setStatus("Still working — this is taking longer than usual. Keep waiting, or press ↻ to reset.", "busy");
-      }, 45000);
+      }, 100000);
     }
 
     function setRecording(active) {
@@ -2122,6 +2135,9 @@
       if (message.type === "stage") {
         if (message.show) showStages(true);
         if (message.stage) setStage(message.stage, message.status || "active");
+        // Real pipeline progress: re-arm the no-progress watchdog so a long but
+        // healthy multi-leg turn is never mistaken for a wedged one.
+        armProcessingWatchdog();
       }
       if (message.type === "practiceResult") {
         clearProcessingWatchdog();
