@@ -92,6 +92,12 @@ unchanging status line.
   in — *Resetting the previous recorder…* → *Preparing microphone…* →
   *Starting recorder…* → *Listening… speak now.* — so the wait is legible
   and obviously progressing rather than hung.
+- **The webview recorder backend now also confirms the press immediately.**
+  On the non-default in-webview recorder, the gap between pressing record
+  and the browser microphone/permission prompt resolving showed nothing at
+  all — the same opaque-press window the native backend now closes with
+  its streamed phases. It now shows *Preparing microphone…* the instant
+  you press, so both recorder backends give immediate, legible feedback.
 
 ## [0.1.35] — 2026-05-17
 

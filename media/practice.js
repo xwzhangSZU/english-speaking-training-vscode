@@ -1290,6 +1290,12 @@
         startNativeRecording("Webview recorder unavailable.");
         return;
       }
+      // getUserMedia + the permission prompt is an unbounded, browser-owned
+      // wait with no other signal; without this the press opens a silent
+      // multi-second window (the same opaque-press gap the native path closes
+      // with its streamed preparing phases). Mirror that cue here so both
+      // recorder backends give immediate, legible feedback on the press.
+      setStatus("Preparing microphone…", "busy");
       chunks = [];
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: await localAudioConstraints() });
