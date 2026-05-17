@@ -1,5 +1,7 @@
 import * as vscode from "vscode";
 
+import { CARD_SCHEMA_VERSION } from "./card-schema.js";
+
 export const MATERIALS_GUIDE_MD = [
   "# English Training: Bring Your Own Materials",
   "",
@@ -119,7 +121,7 @@ export const MATERIALS_GUIDE_MD = [
   "      { \"id\": 1, \"text\": \"Opening thought group.\", \"function\": \"statement\", \"nucleus\": \"group.\", \"contour\": \"→\", \"pause_after\": \"short\" }",
   "    ],",
   "    \"words\": [",
-  "      { \"text\": \"Opening\", \"stress\": \"support\", \"syllables\": \"O·pe·ning\", \"pitch_role\": \"support beat\", \"arrow\": \"\", \"group\": 1 },",
+  "      { \"text\": \"Opening\", \"stress\": \"support\", \"syllables\": \"O·pen·ing\", \"pitch_role\": \"support beat\", \"arrow\": \"\", \"group\": 1 },",
   "      { \"text\": \"group.\", \"stress\": \"nucleus\", \"pitch_role\": \"falling target\", \"arrow\": \"↘\", \"group\": 1 }",
   "    ]",
   "  }",
@@ -129,7 +131,7 @@ export const MATERIALS_GUIDE_MD = [
   "## Generate compatible cards with any LLM",
   "",
   "The pitch / falling-tone / stress / image contract above is published as a",
-  "**versioned, machine-readable Card Schema (v1.1)**. Run `English Training:",
+  `**versioned, machine-readable Card Schema (v${CARD_SCHEMA_VERSION})**. Run \`English Training:`,
   "Generate Next Package` (or the **＋ Generate next package** button under",
   "*Source Diagnostics*). It:",
   "",

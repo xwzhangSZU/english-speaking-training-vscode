@@ -4,6 +4,7 @@
 .vscodeignore
 src/**
 test/**
+scripts/**
 tsconfig.json
 esbuild.js
 **/*.map

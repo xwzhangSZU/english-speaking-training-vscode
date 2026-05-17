@@ -2,7 +2,7 @@
   "name": "english-speaking-training-vscode",
   "displayName": "English Speaking Training",
   "description": "Standalone VS Code speaking-practice cockpit for local EnglishSpeakingTraining files.",
-  "version": "0.1.33",
+  "version": "0.1.34",
   "publisher": "xianwei-zhang",
   "license": "MIT",
   "repository": {

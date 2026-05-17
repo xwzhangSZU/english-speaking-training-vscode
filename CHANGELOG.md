@@ -7,6 +7,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.34] — 2026-05-17
+
+Makes the syllable-stress card actually render, and closes the contract loop
+so future generated materials can never silently lose it.
+
+### Fixed
+- The stress card now shows **which syllable carries the primary stress**
+  (e.g. `ac·count·a·BIL·i·ty`). The renderer always supported this, but every
+  shipped lesson package omitted `words[].syllables`, so the code path was
+  dead and the card fell back to the bare word. All 120 local packages were
+  backfilled (2179 specs) from a hand-vetted, mechanically-validated syllable
+  lexicon — deterministic, reviewable, no network, no per-run cost. True
+  monosyllables and initialisms are correctly left whole.
+- Corrected a linguistic error baked into the Card Schema itself: the worked
+  `accountability` example taught `ac·COUNT·a·bil·i·ty` (wrong stress). Since
+  this is a pronunciation trainer and the schema is read by the generating
+  LLM, that example actively taught the wrong word stress. Now
+  `ac·count·a·BIL·i·ty`, parallel to `re·spon·si·BIL·i·ty`.
+
+### Changed
+- **Card Schema v1.1 → v1.2.** `words[].syllables` is now stated as
+  **REQUIRED** for every multi-syllable listed word (the contract previously
+  said "RECOMMENDED" in the field doc while `hardRules` said MUST — that
+  contradiction is why packages shipped without it). The generation prompt
+  now carries a prominent **"Render-critical invariants"** section that maps
+  each rule to the card it silently breaks, so any LLM following the prompt
+  produces materials this extension can fully render. `materials-guide.ts`
+  now interpolates the schema version instead of a hardcoded literal so it
+  cannot drift again.
+- The `scripts/` maintenance tooling (syllable lexicon + backfill) is kept in
+  git but excluded from the published VSIX (dev-only, like `src/`).
+
 ## [0.1.33] — 2026-05-17
 
 ### Fixed

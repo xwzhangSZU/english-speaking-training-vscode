@@ -12,7 +12,7 @@ import type { JsonObject } from "./types.js";
  * with the enumerations declared below.
  */
 
-export const CARD_SCHEMA_VERSION = "1.1";
+export const CARD_SCHEMA_VERSION = "1.2";
 
 /** Glyphs the renderer understands for intonation contours. */
 export const CONTOUR_GLYPHS = ["→", "↘", "↗", "↑", "↓"] as const;
@@ -100,18 +100,20 @@ export const CARD_SCHEMA: JsonObject = {
             "The renderer matches it case-insensitively to one token in groups[group].text.",
           stress: `string, one of ${JSON.stringify(STRESS_LEVELS)}. 'nucleus' = boxed/underlined main stress; 'support' = secondary beat; 'weak' = de-emphasized.`,
           syllables:
-            "string, RECOMMENDED for every multi-syllable listed word. The word split into syllables by " +
-            "'·' (U+00B7 middle dot), with the PRIMARY-stressed syllable in ALL-CAPS and the rest lowercase; " +
-            "keep any trailing punctuation on its syllable. Examples: 'accountability' -> 'ac·COUNT·a·bil·i·ty', " +
-            "'platforms.' -> 'PLAT·forms.', 'respond' -> 're·SPOND'. Omit for monosyllabic words and " +
-            "initialisms (they render whole). This is what lets the card show WHICH syllable carries the stress.",
+            "string, REQUIRED for every multi-syllable word listed here (see hardRules — the renderer needs " +
+            "this to draw the stress card; without it the card shows only the bare word). The word split into " +
+            "syllables by '·' (U+00B7 middle dot), with EXACTLY ONE syllable — the primary-stressed one — in " +
+            "ALL-CAPS and every other syllable lowercase; never respell the word; keep any trailing punctuation " +
+            "on its syllable. Examples: 'accountability' -> 'ac·count·a·BIL·i·ty', 'responsibility' -> " +
+            "'re·spon·si·BIL·i·ty', 'platforms.' -> 'PLAT·forms.', 'respond' -> 're·SPOND'. Omit ONLY for " +
+            "genuinely monosyllabic words and initialisms (those render whole, which is correct).",
           pitch_role: "string. Free-text label e.g. 'support beat' | 'falling target' | 'level continuation'.",
           arrow: `string, '' or one of ${JSON.stringify(CONTOUR_GLYPHS)}. Normally '' except the nucleus word, which carries its group's contour.`,
           group: "integer. The id of the groups[] entry this word belongs to.",
         },
         rule:
           "Each group MUST have exactly one word with stress:'nucleus' whose text equals that group's nucleus and " +
-          "whose arrow equals that group's contour. Every multi-syllable listed word SHOULD carry 'syllables' " +
+          "whose arrow equals that group's contour. Every multi-syllable listed word MUST carry 'syllables' " +
           "with exactly one ALL-CAPS (primary-stress) syllable so the renderer can mark the stressed syllable.",
       },
     },
@@ -290,6 +292,25 @@ export function buildGenerationPrompt(input: GenerationPromptInput): string {
     "```json",
     cardSchemaContractJson(),
     "```",
+    "",
+    "## Render-critical invariants (the cards silently break without these)",
+    "",
+    "The extension does not validate or repair your JSON — it renders what you send. Each rule below maps",
+    "to a card that goes blank or degrades if you get it wrong. These are not style preferences:",
+    "",
+    "- **Stress card → `word_level_prosody.words[].syllables` is REQUIRED on every multi-syllable listed word.** " +
+      "Split on `·` with EXACTLY ONE ALL-CAPS syllable (the primary stress), e.g. `ac·count·a·BIL·i·ty`, " +
+      "`re·spon·si·BIL·i·ty`, `PLAT·forms.`. Omit it ONLY for true monosyllables and initialisms. Get the " +
+      "stress on the linguistically correct syllable — this is a pronunciation trainer; a wrong ALL-CAPS " +
+      "syllable teaches the learner the wrong word stress.",
+    "- **Pitch / falling-tone card → split `word_level_prosody.groups` into the ACTUAL thought groups.** " +
+      "One group per sentence/clause minimum. A single group containing the whole multi-sentence answer " +
+      "collapses the rise/fall card to one flat contour. Each group's `nucleus` MUST be a verbatim token " +
+      "(trailing punctuation included) inside that same group's `text`.",
+    "- **Every `contour`/`arrow` value comes from the contour glyph set; the final group ends `↘` with " +
+      "`pause_after:'final'`.** Mismatched or empty contours render no pitch movement.",
+    "- **`words[]` stays sparse:** exactly one `nucleus` per group plus only its 1-3 real beats. Tagging " +
+      "every content word `support` makes the stress card uniform and useless.",
     "",
     "## Worked example — a valid `english-training.json`",
     "",
