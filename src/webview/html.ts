@@ -32,10 +32,10 @@ export function buildPracticeHtml(webview: vscode.Webview, extensionUri: vscode.
           <span class="record-cta-icon"></span>
         </button>
         <div class="record-meta">
-          <div class="record-status" id="status">Ready to record</div>
+          <div class="record-status" id="status" role="status" aria-live="polite">Ready to record</div>
           <div class="record-meter">
             <span id="timer">00:00</span>
-            <canvas id="vu" width="100" height="14"></canvas>
+            <canvas id="vu" width="100" height="14" aria-hidden="true"></canvas>
             <button class="ghost" id="refresh" title="Refresh state" aria-label="Refresh state">↻</button>
           </div>
         </div>
@@ -44,7 +44,7 @@ export function buildPracticeHtml(webview: vscode.Webview, extensionUri: vscode.
         <span class="speed-label">Speed</span>
         <div class="speed-chips" id="speedChips"></div>
       </div>
-      <ol class="stages" id="stages" hidden>
+      <ol class="stages" id="stages" aria-label="Processing stages" hidden>
         <li data-stage="transcribe"><span class="stage-dot"></span><span class="stage-name">Transcribe</span></li>
         <li data-stage="coach"><span class="stage-dot"></span><span class="stage-name">Coach</span></li>
         <li data-stage="tts"><span class="stage-dot"></span><span class="stage-name">Speak</span></li>
@@ -53,7 +53,7 @@ export function buildPracticeHtml(webview: vscode.Webview, extensionUri: vscode.
       <audio id="localAudio" controls hidden></audio>
     </section>
 
-    <section class="panel" id="result" hidden></section>
+    <section class="panel" id="result" tabindex="-1" hidden></section>
     <section class="panel" id="turnHistory" hidden></section>
 
     <section class="panel" id="drill"></section>

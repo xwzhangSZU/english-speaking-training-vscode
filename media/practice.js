@@ -20,7 +20,23 @@
     let drillAttempts = {};
     let drillGenerating = false;
     let pendingSlowReadHost = null;
+    let localAudioObjectUrl = null;
     const STAGES = ["transcribe", "coach", "tts", "save"];
+
+    // Each webview-recorder turn used to mint a fresh object URL for the
+    // <audio> preview without ever revoking the previous one, leaking a blob
+    // per recording across a long practice session. Revoke the prior one.
+    function setLocalAudioSource(src, ownsBlobUrl) {
+      const el = $("localAudio");
+      if (!el) return;
+      if (localAudioObjectUrl) {
+        URL.revokeObjectURL(localAudioObjectUrl);
+        localAudioObjectUrl = null;
+      }
+      el.src = src;
+      el.hidden = false;
+      if (ownsBlobUrl) localAudioObjectUrl = src;
+    }
     const $ = (id) => document.getElementById(id);
     const esc = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 
@@ -191,7 +207,7 @@
       if (!hasPresetMatch && Number.isFinite(current) && current > 0) {
         const labelText = Number.isInteger(current)
           ? String(current)
-          : current.toFixed(2).replace(/0+$/, "").replace(/.$/, "");
+          : current.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
         const label = labelText + "×";
         fragments.push('<button type="button" class="speed-chip" data-speed="' + current + '" aria-pressed="true" title="Custom speed from settings.json">' + esc(label) + '</button>');
       }
@@ -976,6 +992,27 @@
       el.classList.remove("busy", "error");
       if (tone === "busy") el.classList.add("busy");
       if (tone === "error") el.classList.add("error");
+      // Errors must interrupt the screen reader; routine status stays polite.
+      el.setAttribute("aria-live", tone === "error" ? "assertive" : "polite");
+    }
+
+    // Recovery net: a hung coach/provider must never trap the user with a
+    // permanently disabled record button. Re-enable + advise after a while,
+    // without faking success or hiding a late real result/error.
+    let processingWatchdog = null;
+    function clearProcessingWatchdog() {
+      if (processingWatchdog) {
+        clearTimeout(processingWatchdog);
+        processingWatchdog = null;
+      }
+    }
+    function armProcessingWatchdog() {
+      clearProcessingWatchdog();
+      processingWatchdog = setTimeout(() => {
+        processingWatchdog = null;
+        setBusy(false);
+        setStatus("Still working — this is taking longer than usual. Keep waiting, or press ↻ to reset.", "busy");
+      }, 45000);
     }
 
     function setRecording(active) {
@@ -1042,6 +1079,7 @@
     }
 
     async function startRecording() {
+      clearProcessingWatchdog();
       activeRecordingTarget = consumePracticeTarget();
       if (recorderBackend() === "macLocal") {
         startNativeRecording("Using Mac local microphone.");
@@ -1067,8 +1105,7 @@
             if (blob.size < 1000) {
               throw new Error("Recording was empty. Please try again after the microphone indicator appears.");
             }
-            $("localAudio").src = URL.createObjectURL(blob);
-            $("localAudio").hidden = false;
+            setLocalAudioSource(URL.createObjectURL(blob), true);
             setRecording(false);
             setBusy(true, "Sending to coach…");
             showStages(true);
@@ -1079,6 +1116,7 @@
             const priorTurn = pendingReplyContext;
             const practiceTarget = activeRecordingTarget;
             vscode.postMessage({ type: "practiceAudio", mimeType, base64, priorTurn, practiceTarget });
+            armProcessingWatchdog();
           } catch (error) {
             setBusy(false);
             setRecording(false);
@@ -1116,6 +1154,7 @@
         setRecording(false);
         stopTimer();
         setBusy(true, "Stopping native recorder…");
+        armProcessingWatchdog();
         recorderMode = null;
         return;
       }
@@ -1133,6 +1172,7 @@
     }
 
     function startNativeRecording(reason) {
+      clearProcessingWatchdog();
       recorderMode = "native";
       setRecording(true);
       setStatus((reason ? reason + " " : "") + "Using Mac local recorder…");
@@ -1594,6 +1634,14 @@
         drillListenTrigger.dataset.busy = "1";
         drillListenTrigger.textContent = "Listening…";
         vscode.postMessage({ type: "slowRead", text: example.text, target: "drill", speed: 0.85 });
+        const listenBtn = drillListenTrigger;
+        setTimeout(() => {
+          if (listenBtn && listenBtn.dataset.busy === "1") {
+            listenBtn.disabled = false;
+            delete listenBtn.dataset.busy;
+            listenBtn.textContent = "Listen";
+          }
+        }, 20000);
         return;
       }
       const heroPracticeTrigger = event.target.closest && event.target.closest("[data-hero-practice]");
@@ -1648,6 +1696,14 @@
         slowTrigger.dataset.busy = "1";
         slowTrigger.textContent = "🐢 …";
         vscode.postMessage({ type: "slowRead", text, target, speed: 0.7 });
+        const slowBtn = slowTrigger;
+        setTimeout(() => {
+          if (slowBtn && slowBtn.dataset.busy === "1") {
+            slowBtn.disabled = false;
+            delete slowBtn.dataset.busy;
+            slowBtn.textContent = slowBtn.dataset.slowRead === "followUp" ? "🐢 Slow read" : "🐢 Slow";
+          }
+        }, 20000);
         return;
       }
       const trigger = event.target.closest && event.target.closest("[data-loop-action]");
@@ -1753,6 +1809,7 @@
         if (message.stage) setStage(message.stage, message.status || "active");
       }
       if (message.type === "practiceResult") {
+        clearProcessingWatchdog();
         markAllStagesDone();
         setBusy(false);
 	        setStatus("Ready ✓");
@@ -1761,8 +1818,7 @@
 	        pendingPracticeTarget = null;
 	        activeRecordingTarget = null;
         if (message.result && message.result.localAudioUri) {
-          $("localAudio").src = message.result.localAudioUri;
-          $("localAudio").hidden = false;
+          setLocalAudioSource(message.result.localAudioUri, false);
         }
         const r = message.result || {};
         lastTurn = {
@@ -1792,6 +1848,11 @@
         const resultPanel = $("result");
         if (resultPanel && typeof resultPanel.scrollIntoView === "function") {
           resultPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+        // Land keyboard/screen-reader users on the fresh coaching result
+        // instead of leaving focus on the (re-rendered) record button.
+        if (resultPanel && typeof resultPanel.focus === "function") {
+          resultPanel.focus({ preventScroll: true });
         }
         setTimeout(() => showStages(false), 1500);
       }
@@ -1910,6 +1971,7 @@
         setStatus(added ? "Added " + added + " fresh FSI line" + (added === 1 ? "" : "s") : "No new drill lines generated");
       }
       if (message.type === "error") {
+        clearProcessingWatchdog();
         if (recorderMode === "native") {
           recorderMode = null;
           setRecording(false);

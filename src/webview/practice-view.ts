@@ -44,7 +44,11 @@ import {
 import { createSamplePackage, generateNextPackage } from "../materials/scaffold.js";
 import { expandHome } from "../runtime/training-root.js";
 import { loadState, toWebviewState } from "../runtime/state.js";
-import { startNativeFfmpegRecording, stopNativeFfmpegRecording } from "../audio/native-recording.js";
+import {
+  killActiveNativeRecording,
+  startNativeFfmpegRecording,
+  stopNativeFfmpegRecording,
+} from "../audio/native-recording.js";
 import { synthesizeOnDemandText, synthesizeTodayAudio } from "../audio/synthesis.js";
 
 export class PracticeViewProvider implements vscode.WebviewViewProvider {
@@ -59,6 +63,14 @@ export class PracticeViewProvider implements vscode.WebviewViewProvider {
     view.webview.html = this.html(view.webview);
     view.webview.onDidReceiveMessage((message: unknown) => {
       void this.handleMessage(message);
+    });
+    // If the practice view is torn down (panel closed/moved) while a native
+    // ffmpeg recorder is running, deactivate() never fires, so the recorder
+    // would keep holding the microphone and a re-resolved view could never
+    // start a new recording ("already running"). Stop it on disposal.
+    view.onDidDispose(() => {
+      killActiveNativeRecording();
+      this.view = undefined;
     });
     void this.postState();
   }
