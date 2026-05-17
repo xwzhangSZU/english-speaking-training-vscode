@@ -751,6 +751,36 @@
       return String(value || "").toLowerCase().replace(/[^a-z0-9']+/g, "");
     }
 
+    // A well-formed package splits a multi-sentence line into one thought group
+    // per idea (card-schema: "Split the sentence into thought groups"). A few
+    // early packages instead crammed several sentences into ONE group with a
+    // single terminal contour, so the pitch card showed just one arrow at the
+    // very end and looked broken. When we receive exactly that shape — one
+    // group whose text is several sentences — split it at sentence boundaries
+    // for display: non-final sentences take the level "→" continuation tone,
+    // the final sentence keeps the group's real nucleus + contour + pause.
+    // This reproduces the →…→…↘ convention every well-formed package already
+    // uses; it asserts no pitch the data didn't imply (non-final sentences are
+    // continuation by default) and is a no-op for correct multi-group packages.
+    function expandDegenerateProsodyGroups(groups) {
+      if (!Array.isArray(groups) || groups.length !== 1) return groups;
+      const only = groups[0] || {};
+      const parts = String(only.text || "").match(/[^.!?]+[.!?]+(?=\s|$)|[^.!?]+$/g) || [];
+      const sentences = parts.map((s) => s.trim()).filter(Boolean);
+      if (sentences.length < 2) return groups;
+      const baseId = only.id != null ? only.id : 1;
+      return sentences.map((sentence, i) => {
+        const isLast = i === sentences.length - 1;
+        return {
+          id: baseId, // keep the words[] → group lookup intact
+          text: sentence,
+          nucleus: isLast ? only.nucleus : "",
+          contour: isLast ? (only.contour || "→") : "→",
+          pause_after: isLast ? (only.pause_after || "final") : "short",
+        };
+      });
+    }
+
     function contourClass(arrow) {
       const a = String(arrow || "");
       if (a.indexOf("↗") >= 0 || /ris/i.test(a)) return "rise";
@@ -895,7 +925,8 @@
 
     function prosodyLineBlockHtml(training, line) {
       const wl = (training && training.word_level_prosody) || null;
-      const groups = wl && Array.isArray(wl.groups) ? wl.groups : [];
+      const rawGroups = wl && Array.isArray(wl.groups) ? wl.groups : [];
+      const groups = expandDegenerateProsodyGroups(rawGroups);
       const words = wl && Array.isArray(wl.words) ? wl.words : [];
       let body = "";
       if (groups.length) {

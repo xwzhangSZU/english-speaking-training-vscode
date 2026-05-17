@@ -7,6 +7,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.33] — 2026-05-17
+
+### Fixed
+- The pitch card no longer collapses to a single terminal arrow when a lesson
+  package crams several sentences into one thought group. Such a degenerate
+  single-group line is now split at sentence boundaries for display: non-final
+  sentences take the level "→" continuation tone and the final sentence keeps
+  the group's real nucleus, contour, and pause. This reproduces the exact
+  →…→…↘ convention every well-formed package already uses, asserts no pitch
+  the data did not imply, and is a strict no-op for correctly grouped
+  packages (verified: 114/120 reference packages unchanged, only the 6
+  single-group packages repaired, no multi-group package altered).
+
 ## [0.1.32] — 2026-05-17
 
 A flow-stability and counter-intuitive-design pass over the full practice
